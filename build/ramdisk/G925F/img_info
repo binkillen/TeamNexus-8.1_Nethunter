@@ -1,0 +1,14 @@
+kernel=kernel
+ramdisk=ramdisk
+dt=dt.img
+page_size=2048
+kernel_size=25186408
+ramdisk_size=1237086
+dtb_size=1458176
+base_addr=0x20000000
+kernel_offset=0x00008000
+ramdisk_offset=0x01000000
+tags_offset=0x00000100
+cmd_line='buildvariant=userdebug'
+board=""
+format=gzip
