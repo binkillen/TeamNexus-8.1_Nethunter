@@ -1180,6 +1180,9 @@ static int vfsspi_open(struct inode *inode, struct file *filp)
 		msleep(100);
 	}
 
+	vfsspi_hardReset();
+	msleep(100);
+
 	if (status == 0) {
 		mutex_lock(&vfsspi_device->kernel_lock);
 		if (vfsspi_device->is_opened != 0) {
