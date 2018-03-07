@@ -199,7 +199,7 @@ CROSS_COMPILE   ?= /home/madscript/Toolchains-Compilation/gcc-linaro-4.9.4-2017.
 
 ifeq ($(shell uname -s),Linux)
   ifeq ($(shell uname -m),x86_64)
-    override CROSS_COMPILE	:= $(srctree)/../../../prebuilts/linaro/linux-x86/aarch64/bin/aarch64-linux-gnu-
+    override CROSS_COMPILE	:= /home/madscript/Toolchains-Compilation/gcc-linaro-4.9.4-2017.01-x86_64_aarch64-linux-gnu/bin/aarch64-linux-gnu-
   endif
 endif
 
