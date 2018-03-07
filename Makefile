@@ -390,7 +390,6 @@ KBUILD_CPPFLAGS := -D__KERNEL__
 # Warnings
 KBUILD_CFLAGS := \
 	-Wall \
-	-Werror \
 	-Wundef \
 	-Wno-format-security \
 	-Wno-implicit-function-declaration \
