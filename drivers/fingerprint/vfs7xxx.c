@@ -110,17 +110,6 @@ static struct of_device_id vfsspi_match_table[] = {
 #define vfsspi_match_table NULL
 #endif
 
-// if sysfs (or better said the power-HAL) takes control over the
-// fingerprint-sensor, make sure no other part of the system will
-// re-enable it themselves
-#define VFS7XXX_CHECK_SYSFS_RESTRICTION() \
-{ \
-	if (g_data->sysfs_pm_restricted) { \
-		pr_info("%s: sysfs restricted calls, exiting...\n", __func__); \
-		return; \
-	} \
-}
-
 extern unsigned int lpcharge;
 
 /*
@@ -206,8 +195,6 @@ struct vfsspi_device_data {
 #ifdef CONFIG_FB
 	struct notifier_block fb_notifier;
 #endif
-	bool sysfs_wakelocks;
-	bool sysfs_pm_restricted;
 };
 
 #ifdef CONFIG_SENSORS_FINGERPRINT_DUALIZATION
@@ -704,9 +691,7 @@ static int vfsspi_set_clk(struct vfsspi_device_data *vfsspi_device,
 
 				kfree(spi_info);
 #ifdef FEATURE_SPI_WAKELOCK
-				if (vfsspi_device->sysfs_wakelocks) {
-					wake_lock(&vfsspi_device->fp_spi_lock);
-				}
+				wake_lock(&vfsspi_device->fp_spi_lock);
 #endif
 				vfsspi_device->enabled_clk = true;
 			} else
@@ -836,9 +821,7 @@ static irqreturn_t vfsspi_irq(int irq, void *context)
 			vfsspi_send_drdy_signal(vfsspi_device);
 #ifdef ENABLE_SENSORS_FPRINT_SECURE
 #ifdef FEATURE_SPI_WAKELOCK
-			if (vfsspi_device->sysfs_wakelocks) {
-				wake_lock_timeout(&vfsspi_device->fp_signal_lock, HZ);
-			}
+			wake_lock_timeout(&vfsspi_device->fp_signal_lock, 3 * HZ);
 #endif
 #endif
 			pr_info("%s disableIrq\n", __func__);
@@ -883,11 +866,6 @@ static void vfsspi_regulator_onoff(struct vfsspi_device_data *vfsspi_device,
 #ifdef ENABLE_SENSORS_FPRINT_SECURE
 	int ret;
 #endif
-	// if sysfs (or better said the power-HAL) takes control over the
-	// fingerprint-sensor, make sure no other part of the system will
-	// re-enable it themselves
-	VFS7XXX_CHECK_SYSFS_RESTRICTION();
-
 	if (vfsspi_device->ldo_pin) {
 		if (vfsspi_device->ldocontrol) {
 			if (onoff) {
@@ -938,11 +916,6 @@ static void vfsspi_hardReset(struct vfsspi_device_data *vfsspi_device)
 {
 	pr_info("%s\n", __func__);
 
-	// if sysfs (or better said the power-HAL) takes control over the
-	// fingerprint-sensor, make sure no other part of the system will
-	// re-enable it themselves
-	VFS7XXX_CHECK_SYSFS_RESTRICTION();
-
 	if (vfsspi_device != NULL) {
 		gpio_set_value(vfsspi_device->sleep_pin, 0);
 		mdelay(1);
@@ -955,11 +928,6 @@ static void vfsspi_suspend(struct vfsspi_device_data *vfsspi_device)
 {
 	pr_info("%s\n", __func__);
 
-	// if sysfs (or better said the power-HAL) takes control over the
-	// fingerprint-sensor, make sure no other part of the system will
-	// re-enable it themselves
-	VFS7XXX_CHECK_SYSFS_RESTRICTION();
-
 	if (vfsspi_device != NULL) {
 		spin_lock(&vfsspi_device->vfs_spi_lock);
 		gpio_set_value(vfsspi_device->sleep_pin, 0);
@@ -969,11 +937,6 @@ static void vfsspi_suspend(struct vfsspi_device_data *vfsspi_device)
 
 static void vfsspi_ioctl_power_on(struct vfsspi_device_data *vfsspi_device)
 {
-	// if sysfs (or better said the power-HAL) takes control over the
-	// fingerprint-sensor, make sure no other part of the system will
-	// re-enable it themselves
-	VFS7XXX_CHECK_SYSFS_RESTRICTION();
-
 	if (vfsspi_device->ldocontrol && !vfsspi_device->ldo_onoff)
 		vfsspi_regulator_onoff(vfsspi_device, true);
 	else {
@@ -986,11 +949,6 @@ static void vfsspi_ioctl_power_on(struct vfsspi_device_data *vfsspi_device)
 
 static void vfsspi_ioctl_power_off(struct vfsspi_device_data *vfsspi_device)
 {
-	// if sysfs (or better said the power-HAL) takes control over the
-	// fingerprint-sensor, make sure no other part of the system will
-	// re-enable it themselves
-	VFS7XXX_CHECK_SYSFS_RESTRICTION();
-
 	if (vfsspi_device->ldocontrol && vfsspi_device->ldo_onoff) {
 		vfsspi_regulator_onoff(vfsspi_device, false);
 		/* prevent sleep pin floating */
@@ -1180,9 +1138,6 @@ static int vfsspi_open(struct inode *inode, struct file *filp)
 		msleep(100);
 	}
 
-	vfsspi_hardReset();
-	msleep(100);
-
 	if (status == 0) {
 		mutex_lock(&vfsspi_device->kernel_lock);
 		if (vfsspi_device->is_opened != 0) {
@@ -1363,8 +1318,6 @@ static int vfsspi_platformInit(struct vfsspi_device_data *vfsspi_device)
 		WAKE_LOCK_SUSPEND, "vfsspi_wake_lock");
 	wake_lock_init(&vfsspi_device->fp_signal_lock,
 		WAKE_LOCK_SUSPEND, "vfsspi_sigwake_lock");
-
-	vfsspi_device->sysfs_wakelocks = 1;
 #endif
 #endif
 
@@ -1638,37 +1591,30 @@ static ssize_t vfsspi_retain_store(struct device *dev,
 }
 #endif
 
-static ssize_t vfsspi_wakelocks_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
-{
-	return sprintf(buf, "%d\n", g_data->sysfs_wakelocks);
-}
+static DEVICE_ATTR(type_check, S_IRUGO,
+	vfsspi_type_check_show, NULL);
+static DEVICE_ATTR(vendor, S_IRUGO,
+	vfsspi_vendor_show, NULL);
+static DEVICE_ATTR(name, S_IRUGO,
+	vfsspi_name_show, NULL);
+static DEVICE_ATTR(adm, S_IRUGO,
+	vfsspi_adm_show, NULL);
+#ifndef ENABLE_SENSORS_FPRINT_SECURE
+static DEVICE_ATTR(retain_pin, S_IRUGO | S_IWUSR | S_IWGRP,
+	vfsspi_retain_show, vfsspi_retain_store);
+#endif
 
-static ssize_t vfsspi_wakelocks_store(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count)
-{
-	int val = 0;
-
-	if (g_data == NULL) {
-		pr_err("%s: g_data is NULL.\n", __func__);
-		return -EINVAL;
-	}
-
-	if (sscanf(buf, "%d", &val) != 1) {
-		pr_err("%s, input parameter count was wrong.\n", __func__);
-		return -EINVAL;
-	}
-
-	if (val == 1) {
-		g_data->sysfs_wakelocks = 1;
-	} else if (val == 0) {
-		g_data->sysfs_wakelocks = 0;
-	} else {
-		pr_err("%s, input value was not accepted.\n", __func__);
-		return -EINVAL;
-	}
-	return count;
-}
+static struct device_attribute *fp_attrs[] = {
+	&dev_attr_type_check,
+	&dev_attr_vendor,
+	&dev_attr_name,
+	&dev_attr_adm,
+#ifndef ENABLE_SENSORS_FPRINT_SECURE
+	&dev_attr_retain_pin,
+#endif
+	NULL,
+};
+#endif
 
 static void vfsspi_work_func_debug(struct work_struct *work)
 {
@@ -1701,84 +1647,6 @@ static void vfsspi_disable_debug_timer(void)
 	del_timer_sync(&g_data->dbg_timer);
 	cancel_work_sync(&g_data->work_debug);
 }
-
-static ssize_t vfsspi_pm_store(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count)
-{
-	int val = 0;
-
-	if (g_data == NULL) {
-		pr_err("%s: g_data is NULL.\n", __func__);
-		return -EINVAL;
-	}
-
-	if (sscanf(buf, "%d", &val) != 1) {
-		pr_err("%s, input parameter count was wrong.\n", __func__);
-		return -EINVAL;
-	}
-
-	if (val == 1) {
-		// early-remove restrictions
-		g_data->sysfs_pm_restricted = false;
-
-		// re-enable debug work timer
-		vfsspi_enable_debug_timer();
-
-		// main power on
-		vfsspi_regulator_onoff(g_data, true);
-		msleep(10);
-
-		// force-reset GPIO sleep state
-		vfsspi_hardReset(g_data);
-		msleep(20);
-	} else if (val == 0) {
-		// main power off
-		vfsspi_regulator_onoff(g_data, false);
-
-		// set GPIO sleep state
-		vfsspi_suspend(g_data);
-
-		// disable annoying debug work timer
-		vfsspi_disable_debug_timer();
-
-		g_data->sysfs_pm_restricted = true;
-	} else {
-		pr_err("%s, input value was not accepted.\n", __func__);
-		return -EINVAL;
-	}
-	return count;
-}
-
-static DEVICE_ATTR(type_check, S_IRUGO,
-	vfsspi_type_check_show, NULL);
-static DEVICE_ATTR(vendor, S_IRUGO,
-	vfsspi_vendor_show, NULL);
-static DEVICE_ATTR(name, S_IRUGO,
-	vfsspi_name_show, NULL);
-static DEVICE_ATTR(adm, S_IRUGO,
-	vfsspi_adm_show, NULL);
-#ifndef ENABLE_SENSORS_FPRINT_SECURE
-static DEVICE_ATTR(retain_pin, S_IRUGO | S_IWUSR | S_IWGRP,
-	vfsspi_retain_show, vfsspi_retain_store);
-#endif
-static DEVICE_ATTR(wakelocks, S_IRUGO | S_IWUSR | S_IWGRP,
-	vfsspi_wakelocks_show, vfsspi_wakelocks_store);
-static DEVICE_ATTR(pm, S_IWUSR | S_IWGRP,
-	NULL, vfsspi_pm_store);
-
-static struct device_attribute *fp_attrs[] = {
-	&dev_attr_type_check,
-	&dev_attr_vendor,
-	&dev_attr_name,
-	&dev_attr_adm,
-#ifndef ENABLE_SENSORS_FPRINT_SECURE
-	&dev_attr_retain_pin,
-#endif
-	&dev_attr_wakelocks,
-	&dev_attr_pm,
-	NULL,
-};
-#endif
 
 static void vfsspi_timer_func(unsigned long ptr)
 {
