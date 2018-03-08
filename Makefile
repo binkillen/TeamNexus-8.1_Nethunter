@@ -196,12 +196,7 @@ SUBARCH := $(shell uname -m | sed -e s/i.86/x86/ -e s/x86_64/x86/ \
 #CROSS_COMPILE	?= $(CONFIG_CROSS_COMPILE:"%"=%)
 ARCH            ?= arm64
 CROSS_COMPILE   ?= /home/madscript/Toolchains-Compilation/gcc-linaro-4.9.4-2017.01-x86_64_aarch64-linux-gnu/bin/aarch64-linux-gnu-
-
-ifeq ($(shell uname -s),Linux)
-  ifeq ($(shell uname -m),x86_64)
-    override CROSS_COMPILE	:= /home/madscript/Toolchains-Compilation/gcc-linaro-4.9.4-2017.01-x86_64_aarch64-linux-gnu/bin/aarch64-linux-gnu-
-  endif
-endif
+#CROSS_COMPILE   ?= /home/madscript/Toolchains-Compilation/gcc-linaro-4.9.4-2017.01-x86_64_aarch64-linux-gnu/bin/aarch64-linux-gnu-
 
 # Architecture as present in compile.h
 UTS_MACHINE 	:= $(ARCH)
@@ -390,6 +385,7 @@ KBUILD_CPPFLAGS := -D__KERNEL__
 # Warnings
 KBUILD_CFLAGS := \
 	-Wall \
+	-Werror \
 	-Wundef \
 	-Wno-format-security \
 	-Wno-implicit-function-declaration \
@@ -402,25 +398,7 @@ KBUILD_CFLAGS += \
 	-fno-common \
 	-fno-delete-null-pointer-checks \
 	-fno-strict-aliasing \
-	-std=gnu89 \
 	-Ofast
-
-# Linaro
-KBUILD_CFLAGS += \
-	-Wno-array-bounds \
-	-Wno-bool-operation \
-	-Wno-discarded-array-qualifiers \
-	-Wno-int-in-bool-context \
-	-Wno-format-overflow \
-	-Wno-format-truncation \
-	-Wno-logical-not-parentheses \
-	-Wno-memset-elt-size \
-	-Wno-misleading-indentation \
-	-Wno-nonnull \
-	-Wno-switch-unreachable \
-	-Wno-switch-bool \
-	-Wno-tautological-compare \
-	-Wno-unused-const-variable
 
 KBUILD_AFLAGS_KERNEL :=
 KBUILD_CFLAGS_KERNEL :=
