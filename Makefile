@@ -195,12 +195,12 @@ SUBARCH := $(shell uname -m | sed -e s/i.86/x86/ -e s/x86_64/x86/ \
 #ARCH		?= $(SUBARCH)
 #CROSS_COMPILE	?= $(CONFIG_CROSS_COMPILE:"%"=%)
 ARCH            ?= arm64
-CROSS_COMPILE   ?= ../PLATFORM/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin/aarch64-linux-android-
-#CROSS_COMPILE   ?= /opt/toolchains/aarch64-linux-android-4.9/bin/aarch64-linux-android-
+CROSS_COMPILE   ?= /home/madscript/Github/KernelBuilder_Pack/Toolchains/gcc-linaro-7.2.1-2017.11-x86_64_aarch64-linux-gnu/bin/aarch64-linux-gnu-
+#CROSS_COMPILE   ?= /home/madscript/Github/KernelBuilder_Pack/Toolchains/gcc-linaro-7.2.1-2017.11-x86_64_aarch64-linux-gnu/bin/aarch64-linux-gnu-
 
 ifeq ($(shell uname -s),Linux)
   ifeq ($(shell uname -m),x86_64)
-    override CROSS_COMPILE	:= $(srctree)/../../../prebuilts/linaro/linux-x86/aarch64/bin/aarch64-linux-gnu-
+    override CROSS_COMPILE	:= /home/madscript/Github/KernelBuilder_Pack/Toolchains/gcc-linaro-7.2.1-2017.11-x86_64_aarch64-linux-gnu/bin/aarch64-linux-gnu-
   endif
 endif
 
