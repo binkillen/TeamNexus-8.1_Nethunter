@@ -1,0 +1,4 @@
+# Aliases extracted from modules themselves.
+alias usb:v0A5Cp2033d*dc*dsc*dp*ic*isc*ip*in* bcm203x
+alias usb:v08FDp0002d*dc*dsc*dp*ic*isc*ip*in* bpa10x
+alias usb:v057Cp2200d*dc*dsc*dp*ic*isc*ip*in* bfusb
